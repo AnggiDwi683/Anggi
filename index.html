@@ -14,6 +14,22 @@
 
   <h1 class="text-3xl font-bold mb-6 text-center">RSA QR Tool (PDF & DOCX)</h1>
 
+  <!-- Menu Enkripsi -->
+  <div class="mb-6 p-4 border rounded bg-white">
+    <h2 class="text-xl font-semibold mb-2">🔐 Enkripsi</h2>
+    <textarea id="encrypt-input" rows="3" class="w-full border px-2 py-1 rounded mb-2" placeholder="Masukkan teks untuk dienkripsi..."></textarea>
+    <button onclick="encryptText()" class="bg-blue-600 text-white px-4 py-2 rounded">Enkripsi</button>
+    <textarea id="encrypt-output" rows="3" class="w-full border px-2 py-1 rounded mt-2" placeholder="Hasil enkripsi..." readonly></textarea>
+  </div>
+
+  <!-- Menu Dekripsi -->
+  <div class="mb-6 p-4 border rounded bg-white">
+    <h2 class="text-xl font-semibold mb-2">🔓 Dekripsi</h2>
+    <textarea id="decrypt-input" rows="3" class="w-full border px-2 py-1 rounded mb-2" placeholder="Masukkan teks terenkripsi..."></textarea>
+    <button onclick="decryptText()" class="bg-green-600 text-white px-4 py-2 rounded">Dekripsi</button>
+    <textarea id="decrypt-output" rows="3" class="w-full border px-2 py-1 rounded mt-2" placeholder="Hasil dekripsi..." readonly></textarea>
+  </div>
+
   <!-- File Upload -->
   <div class="mb-4">
     <label class="font-semibold">Unggah File PDF atau DOCX:</label>
@@ -118,20 +134,18 @@
     const file = fileInput.files[0];
     const ext = file.name.split('.').pop().toLowerCase();
 
-    // Generate QR canvas and convert to base64 png
     const qrCanvas = document.createElement("canvas");
     await QRCode.toCanvas(qrCanvas, cipher);
     const qrDataUrl = qrCanvas.toDataURL("image/png");
 
     if (ext === "pdf") {
-      // Process PDF
       const existingPdfBytes = await file.arrayBuffer();
       const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
       const pages = pdfDoc.getPages();
       const lastPage = pages[pages.length - 1];
       const pngImage = await pdfDoc.embedPng(qrDataUrl);
       const { width, height } = lastPage.getSize();
-      const pngDims = pngImage.scale(0.15); // kecil
+      const pngDims = pngImage.scale(0.12);
 
       lastPage.drawImage(pngImage, {
         x: width - pngDims.width - 50,
@@ -147,17 +161,12 @@
       URL.revokeObjectURL(url);
 
     } else if (ext === "docx") {
-      // Process DOCX
-      // Use docx library: embed image in footer right bottom (page 1)
       const arrayBuffer = await file.arrayBuffer();
-
       const zip = await window.docx.Packer.unzip(arrayBuffer);
       const doc = await window.docx.Document.load(zip);
 
-      // Create image from base64
       const image = window.docx.Media.addImage(doc, qrDataUrl);
 
-      // Create footer with image aligned right
       const footer = new window.docx.Footer({
         children: [new window.docx.Paragraph({
           children: [image],
@@ -166,7 +175,6 @@
         })],
       });
 
-      // Replace existing footers or add new to first section
       const sections = doc.getSections();
       if (sections.length > 0) {
         sections[0].footers = { default: footer };
@@ -191,6 +199,20 @@
     const url = URL.createObjectURL(blob);
     downloadFile(url, filename);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function encryptText() {
+    const plain = document.getElementById("encrypt-input").value;
+    document.getElementById("encrypt-output").value = btoa(plain); // Placeholder simple encode
+  }
+
+  function decryptText() {
+    const encoded = document.getElementById("decrypt-input").value;
+    try {
+      document.getElementById("decrypt-output").value = atob(encoded);
+    } catch (e) {
+      alert("Teks terenkripsi tidak valid!");
+    }
   }
 </script>
 
