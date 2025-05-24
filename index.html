@@ -2,75 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>RSA Encryption with QR Code</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbn/1.4.1/jsbn.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbn/1.4.1/jsbn2.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+  <title>RSA Encrypt + QR</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <style>
-    body { font-family: Arial; margin: 20px; }
-    textarea { width: 100%; height: 60px; margin-bottom: 10px; }
-    input, button { margin-bottom: 10px; padding: 5px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    textarea, input { width: 100%; margin-bottom: 10px; padding: 8px; }
+    button { padding: 10px 15px; }
     #qrcode { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h2>RSA Encryption + QR Code Generator</h2>
+  <h2>RSA Encryption + QR Code</h2>
 
-  <label>Plaintext (ID Dokumen):</label><br>
-  <textarea id="plaintext">SERTIFIKAT/012/24052025/IGUSTIAYUSRI_BIDANGPENGMAS</textarea><br>
+  <label>ID Dokumen (Plaintext):</label>
+  <textarea id="plaintext">SERTIFIKAT/012/24052025/IGUSTIAYUSRI_BIDANGPENGMAS</textarea>
 
-  <button onclick="generateKeys()">🔐 Generate RSA Keys</button><br>
-  <label>Public Key (n, e):</label>
-  <textarea id="publicKey" readonly></textarea>
-  <label>Private Key (d):</label>
-  <textarea id="privateKey" readonly></textarea>
+  <label>Bilangan Prima p:</label>
+  <input type="number" id="p" value="61">
 
-  <button onclick="encrypt()">🔒 Encrypt</button><br>
-  <label>Ciphertext:</label>
+  <label>Bilangan Prima q:</label>
+  <input type="number" id="q" value="53">
+
+  <label>Eksponen e:</label>
+  <input type="number" id="e" value="17">
+
+  <button onclick="encryptRSA()">🔒 Enkripsi dan Buat QR Code</button>
+
+  <label>Hasil Ciphertext:</label>
   <textarea id="ciphertext" readonly></textarea>
 
   <div id="qrcode"></div>
-  <button onclick="downloadQR()">💾 Download QR Code</button>
+  <button onclick="downloadQR()">💾 Simpan QR Code</button>
 
   <script>
-    let rsa;
-
-    function generateKeys() {
-      rsa = new JSEncrypt({ default_key_size: 512 });
-      rsa.getKey(); // Generate the keys
-
-      document.getElementById("publicKey").value =
-        "n: " + rsa.key.n.toString(16) + "\n" +
-        "e: " + rsa.key.e.toString(16);
-
-      document.getElementById("privateKey").value =
-        "d: " + rsa.key.d.toString(16);
+    function modInverse(e, phi) {
+      let [a, b] = [e, phi], [x, y] = [0, 1];
+      while (a !== 0) {
+        [q, r] = [Math.floor(b / a), b % a];
+        [b, a] = [a, r];
+        [x, y] = [y - q * x, x];
+      }
+      return (y + phi) % phi;
     }
 
-    function encrypt() {
+    function modPow(base, exp, mod) {
+      let result = 1n;
+      base = BigInt(base);
+      exp = BigInt(exp);
+      mod = BigInt(mod);
+      while (exp > 0) {
+        if (exp % 2n === 1n) result = (result * base) % mod;
+        base = (base * base) % mod;
+        exp = exp / 2n;
+      }
+      return result;
+    }
+
+    function encryptRSA() {
       const plaintext = document.getElementById("plaintext").value;
-      if (!rsa) {
-        alert("Please generate keys first.");
+      const p = parseInt(document.getElementById("p").value);
+      const q = parseInt(document.getElementById("q").value);
+      const e = parseInt(document.getElementById("e").value);
+
+      const n = p * q;
+      const phi = (p - 1) * (q - 1);
+
+      // Validasi kunci
+      if (gcd(e, phi) !== 1) {
+        alert("e harus coprime dengan phi(n).");
         return;
       }
-      const ciphertext = rsa.encrypt(plaintext);
+
+      // Enkripsi karakter demi karakter
+      const encrypted = [];
+      for (let i = 0; i < plaintext.length; i++) {
+        const m = plaintext.charCodeAt(i);
+        const c = modPow(m, e, n);
+        encrypted.push(c.toString());
+      }
+
+      const ciphertext = encrypted.join(" ");
       document.getElementById("ciphertext").value = ciphertext;
 
-      // Generate QR code
-      const qrDiv = document.getElementById("qrcode");
-      qrDiv.innerHTML = "";
-      QRCode.toCanvas(ciphertext, { width: 200 }, function (err, canvas) {
+      // Buat QR Code
+      document.getElementById("qrcode").innerHTML = "";
+      QRCode.toCanvas(ciphertext, { width: 250 }, function (err, canvas) {
         if (err) console.error(err);
-        qrDiv.appendChild(canvas);
         canvas.id = "qrCanvas";
+        document.getElementById("qrcode").appendChild(canvas);
       });
+    }
+
+    function gcd(a, b) {
+      while (b !== 0) {
+        [a, b] = [b, a % b];
+      }
+      return a;
     }
 
     function downloadQR() {
       const canvas = document.getElementById("qrCanvas");
       if (!canvas) {
-        alert("Generate QR Code terlebih dahulu.");
+        alert("QR Code belum dibuat.");
         return;
       }
       const link = document.createElement("a");
