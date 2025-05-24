@@ -1,104 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Enkripsi RSA & QR Code Generator</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsencrypt/bin/jsencrypt.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSA Encryption with QR Code</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
-    input, textarea, button { margin: 5px 0; width: 100%; padding: 10px; font-size: 16px; }
-    #qrcode { margin-top: 20px; }
-  </style>
 </head>
 <body>
+  <h2>RSA Encryption and QR Code Generator</h2>
 
-  <h2>RSA Enkripsi ID Surat & QR Code</h2>
+  <button onclick="generateKeys()">Generate RSA Keys</button><br><br>
+  <label>p (prime):</label>
+  <input type="text" id="p" readonly><br>
+  <label>q (prime):</label>
+  <input type="text" id="q" readonly><br>
+  <label>n (p*q):</label>
+  <input type="text" id="n" readonly><br>
+  <label>e (public exponent):</label>
+  <input type="text" id="e" readonly><br>
+  <label>d (private exponent):</label>
+  <input type="text" id="d" readonly><br>
 
-  <label for="idSurat">ID Surat:</label>
-  <input type="text" id="idSurat" placeholder="Misal: SERTIFIKAT/012/24052025/IGUSTIAYUSRI_BIDANGPENGMAS">
+  <br><hr><br>
 
-  <label for="p">Bilangan Prima p:</label>
-  <input type="number" id="p" placeholder="Contoh: 61">
+  <label>Plaintext (ID Surat):</label>
+  <input type="text" id="plaintext" value="SERTIFIKAT/012/24052025/IGUSTIAYUSRI_BIDANGPENGMAS"><br>
+  <button onclick="encrypt()">Encrypt</button><br><br>
 
-  <label for="q">Bilangan Prima q:</label>
-  <input type="number" id="q" placeholder="Contoh: 53">
-
-  <label for="e">Eksponen Publik e:</label>
-  <input type="number" id="e" placeholder="Contoh: 17">
-
-  <button onclick="encryptRSA()">Enkripsi & Generate QR Code</button>
-
-  <label for="cipher">Ciphertext:</label>
-  <textarea id="cipher" rows="4" readonly></textarea>
+  <label>Ciphertext:</label>
+  <textarea id="ciphertext" rows="4" cols="50" readonly></textarea><br>
 
   <div id="qrcode"></div>
 
   <script>
+    function isPrime(n) {
+      if (n <= 1) return false;
+      if (n <= 3) return true;
+      if (n % 2 === 0 || n % 3 === 0) return false;
+      for (let i = 5; i * i <= n; i += 6) {
+        if (n % i === 0 || n % (i + 2) === 0) return false;
+      }
+      return true;
+    }
+
+    function generateLargePrime(min, max) {
+      let prime;
+      do {
+        prime = Math.floor(Math.random() * (max - min)) + min;
+      } while (!isPrime(prime));
+      return prime;
+    }
+
     function gcd(a, b) {
-      while (b !== 0) {
-        let t = b;
+      while (b != 0) {
+        let temp = b;
         b = a % b;
-        a = t;
+        a = temp;
       }
       return a;
     }
 
     function modInverse(e, phi) {
-      let m0 = phi, t, q;
-      let x0 = 0, x1 = 1;
-      if (phi == 1) return 0;
-      while (e > 1) {
-        q = Math.floor(e / phi);
-        t = phi;
-        phi = e % phi;
-        e = t;
-        t = x0;
-        x0 = x1 - q * x0;
-        x1 = t;
+      let [a, b, u] = [0, phi, 1];
+      while (e > 0) {
+        let q = Math.floor(b / e);
+        [a, b, u, e] = [u, e, a - q * u, b - q * e];
       }
-      if (x1 < 0) x1 += m0;
-      return x1;
+      if (b !== 1) return null; // No inverse
+      return (a + phi) % phi;
     }
 
-    function encryptRSA() {
-      let idSurat = document.getElementById("idSurat").value;
-      let p = parseInt(document.getElementById("p").value);
-      let q = parseInt(document.getElementById("q").value);
-      let e = parseInt(document.getElementById("e").value);
+    function generateKeys() {
+      const p = generateLargePrime(100, 200);
+      const q = generateLargePrime(200, 300);
+      const n = p * q;
+      const phi = (p - 1) * (q - 1);
+      let e = 3;
+      while (gcd(e, phi) !== 1) e += 2;
+      const d = modInverse(e, phi);
 
-      if (!idSurat || !p || !q || !e) {
-        alert("Mohon isi semua field.");
-        return;
+      document.getElementById('p').value = p;
+      document.getElementById('q').value = q;
+      document.getElementById('n').value = n;
+      document.getElementById('e').value = e;
+      document.getElementById('d').value = d;
+    }
+
+    function encrypt() {
+      const plaintext = document.getElementById('plaintext').value;
+      const e = parseInt(document.getElementById('e').value);
+      const n = parseInt(document.getElementById('n').value);
+
+      const encoded = [];
+      for (let i = 0; i < plaintext.length; i++) {
+        const m = plaintext.charCodeAt(i);
+        const c = BigInt(m) ** BigInt(e) % BigInt(n);
+        encoded.push(c.toString());
       }
+      const ciphertext = encoded.join(' ');
+      document.getElementById('ciphertext').value = ciphertext;
 
-      let n = p * q;
-      let phi = (p - 1) * (q - 1);
-
-      if (gcd(e, phi) !== 1) {
-        alert("e harus coprime dengan φ(n).");
-        return;
-      }
-
-      // Ubah plainteks menjadi angka ASCII gabungan
-      let ascii = [];
-      for (let i = 0; i < idSurat.length; i++) {
-        ascii.push(idSurat.charCodeAt(i));
-      }
-
-      // Enkripsi tiap karakter
-      let cipher = ascii.map(m => BigInt(m) ** BigInt(e) % BigInt(n)).join(" ");
-
-      document.getElementById("cipher").value = cipher;
-
-      // Generate QR Code
-      let qrDiv = document.getElementById("qrcode");
-      qrDiv.innerHTML = ""; // clear sebelumnya
-      QRCode.toCanvas(cipher, { width: 300 }, function (err, canvas) {
-        if (err) console.error(err);
-        qrDiv.appendChild(canvas);
+      QRCode.toCanvas(document.getElementById('qrcode'), ciphertext, function (error) {
+        if (error) console.error(error);
       });
     }
   </script>
-
 </body>
 </html>
