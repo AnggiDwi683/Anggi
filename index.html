@@ -131,7 +131,7 @@
       const lastPage = pages[pages.length - 1];
       const pngImage = await pdfDoc.embedPng(qrDataUrl);
       const { width, height } = lastPage.getSize();
-      const pngDims = pngImage.scale(0.1); // kecil
+      const pngDims = pngImage.scale(0.15); // kecil
 
       lastPage.drawImage(pngImage, {
         x: width - pngDims.width - 50,
