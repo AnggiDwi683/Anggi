@@ -92,6 +92,10 @@
         <input type="file" id="ttd-file" accept=".pdf,.doc,.docx,.txt,.odt,.rtf,.html,.md" class="block mt-2 mb-4">
       </div>
       <div class="mb-4">
+        <label class="text-sm">Atau unggah gambar QR:</label>
+        <input type="file" accept="image/*" onchange="scanQRForTTD(event)" class="block mt-2">
+      </div>
+      <div class="mb-4">
         <label class="text-sm">Masukkan Ciphertext QR:</label>
         <textarea id="ttd-cipher" rows="3" class="w-full border px-2 py-1 rounded"></textarea>
       </div>
@@ -99,7 +103,6 @@
     </div>
   </div>
 
-  <!-- SCRIPT -->
   <script>
     const USERS = { "admin": "1234", "user": "abcd" };
     function login() {
@@ -153,7 +156,7 @@
       if (!p || !q || !e) throw "Isi semua nilai p, q, dan e";
       const n = p * q;
       const phi = (p - 1) * (q - 1);
-      if (gcd(e, phi) !== 1) throw "e tidak coprime dengan φ(n)";
+      if (gcd(e, phi) !== 1) throw "e tidak coprime dengan ϕ(n)";
       const d = modInverse(e, phi);
       if (d === null) throw "Invers modular tidak ditemukan";
       return { e: BigInt(e), d: BigInt(d), n: BigInt(n) };
@@ -197,6 +200,30 @@
           const code = jsQR(imageData.data, canvas.width, canvas.height);
           if (code) {
             document.getElementById("ciphertextInput").value = code.data;
+          } else {
+            alert("QR tidak terbaca");
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function scanQRForTTD(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function () {
+        const img = new Image();
+        img.onload = function () {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, canvas.width, canvas.height);
+          if (code) {
+            document.getElementById("ttd-cipher").value = code.data;
           } else {
             alert("QR tidak terbaca");
           }
