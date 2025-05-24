@@ -1,165 +1,104 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>RSA Digital Signature</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            max-width: 800px;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 8px;
-            margin: 4px 0 12px 0;
-        }
-        button {
-            padding: 10px 20px;
-            margin-bottom: 20px;
-        }
-        h2 {
-            margin-top: 40px;
-        }
-    </style>
+  <title>Enkripsi RSA & QR Code Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsencrypt/bin/jsencrypt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
+    input, textarea, button { margin: 5px 0; width: 100%; padding: 10px; font-size: 16px; }
+    #qrcode { margin-top: 20px; }
+  </style>
 </head>
 <body>
 
-    <h1>RSA Digital Signature</h1>
+  <h2>RSA Enkripsi ID Surat & QR Code</h2>
 
-    <h2>1. Generate Key</h2>
-    <label for="p">Masukkan bilangan prima p:</label>
-    <input type="number" id="p" placeholder="contoh: 61">
+  <label for="idSurat">ID Surat:</label>
+  <input type="text" id="idSurat" placeholder="Misal: SERTIFIKAT/012/24052025/IGUSTIAYUSRI_BIDANGPENGMAS">
 
-    <label for="q">Masukkan bilangan prima q:</label>
-    <input type="number" id="q" placeholder="contoh: 53">
+  <label for="p">Bilangan Prima p:</label>
+  <input type="number" id="p" placeholder="Contoh: 61">
 
-    <label for="e">Masukkan nilai e (relatif prima dengan φ(n)):</label>
-    <input type="number" id="e" placeholder="contoh: 17">
+  <label for="q">Bilangan Prima q:</label>
+  <input type="number" id="q" placeholder="Contoh: 53">
 
-    <button onclick="generateKeys()">Generate Keys</button>
+  <label for="e">Eksponen Publik e:</label>
+  <input type="number" id="e" placeholder="Contoh: 17">
 
-    <label>Public Key:</label>
-    <input type="text" id="publicKey" readonly>
+  <button onclick="encryptRSA()">Enkripsi & Generate QR Code</button>
 
-    <label>Private Key:</label>
-    <input type="text" id="privateKey" readonly>
+  <label for="cipher">Ciphertext:</label>
+  <textarea id="cipher" rows="4" readonly></textarea>
 
-    <h2>2. Tanda Tangan Pesan</h2>
-    <label for="message">Pesan yang akan ditandatangani:</label>
-    <input type="text" id="message" placeholder="contoh: Halo">
+  <div id="qrcode"></div>
 
-    <button onclick="signMessage()">Tandatangani Pesan</button>
+  <script>
+    function gcd(a, b) {
+      while (b !== 0) {
+        let t = b;
+        b = a % b;
+        a = t;
+      }
+      return a;
+    }
 
-    <label>Tanda Tangan:</label>
-    <input type="text" id="signature" readonly>
+    function modInverse(e, phi) {
+      let m0 = phi, t, q;
+      let x0 = 0, x1 = 1;
+      if (phi == 1) return 0;
+      while (e > 1) {
+        q = Math.floor(e / phi);
+        t = phi;
+        phi = e % phi;
+        e = t;
+        t = x0;
+        x0 = x1 - q * x0;
+        x1 = t;
+      }
+      if (x1 < 0) x1 += m0;
+      return x1;
+    }
 
-    <h2>3. Verifikasi Tanda Tangan</h2>
-    <label for="verifyMessage">Pesan asli:</label>
-    <input type="text" id="verifyMessage" placeholder="contoh: Halo">
+    function encryptRSA() {
+      let idSurat = document.getElementById("idSurat").value;
+      let p = parseInt(document.getElementById("p").value);
+      let q = parseInt(document.getElementById("q").value);
+      let e = parseInt(document.getElementById("e").value);
 
-    <label for="verifySignature">Tanda tangan:</label>
-    <input type="text" id="verifySignature" placeholder="salin tanda tangan di atas">
+      if (!idSurat || !p || !q || !e) {
+        alert("Mohon isi semua field.");
+        return;
+      }
 
-    <button onclick="verifySignature()">Verifikasi</button>
+      let n = p * q;
+      let phi = (p - 1) * (q - 1);
 
-    <label>Hasil Verifikasi:</label>
-    <input type="text" id="verificationResult" readonly>
+      if (gcd(e, phi) !== 1) {
+        alert("e harus coprime dengan φ(n).");
+        return;
+      }
 
-    <script>
-        // Fungsi untuk menghitung FPB
-        function gcd(a, b) {
-            return b === 0 ? a : gcd(b, a % b);
-        }
+      // Ubah plainteks menjadi angka ASCII gabungan
+      let ascii = [];
+      for (let i = 0; i < idSurat.length; i++) {
+        ascii.push(idSurat.charCodeAt(i));
+      }
 
-        // Fungsi untuk menghitung invers modulo
-        function modInverse(e, phi) {
-            let [a, b, x0, x1] = [phi, e, 0, 1];
-            while (b !== 0) {
-                let q = Math.floor(a / b);
-                [a, b] = [b, a % b];
-                [x0, x1] = [x1, x0 - q * x1];
-            }
-            return x0 < 0 ? x0 + phi : x0;
-        }
+      // Enkripsi tiap karakter
+      let cipher = ascii.map(m => BigInt(m) ** BigInt(e) % BigInt(n)).join(" ");
 
-        // Fungsi untuk pemangkatan modulo
-        function modPow(base, exp, mod) {
-            let result = 1;
-            base = base % mod;
-            while (exp > 0) {
-                if (exp % 2 === 1) result = (result * base) % mod;
-                base = (base * base) % mod;
-                exp = Math.floor(exp / 2);
-            }
-            return result;
-        }
+      document.getElementById("cipher").value = cipher;
 
-        // Variabel global
-        let n, d, eGlobal;
-
-        function generateKeys() {
-            const p = parseInt(document.getElementById("p").value);
-            const q = parseInt(document.getElementById("q").value);
-            const e = parseInt(document.getElementById("e").value);
-
-            if (!p || !q || !e) {
-                alert("Isi semua input p, q, dan e!");
-                return;
-            }
-
-            n = p * q;
-            const phi = (p - 1) * (q - 1);
-
-            if (gcd(e, phi) !== 1) {
-                alert("e dan φ(n) tidak relatif prima. Pilih e lain.");
-                return;
-            }
-
-            d = modInverse(e, phi);
-            eGlobal = e;
-
-            document.getElementById("publicKey").value = `(${e}, ${n})`;
-            document.getElementById("privateKey").value = `(${d}, ${n})`;
-        }
-
-        function textToNumber(text) {
-            return text.split('').map(char => char.charCodeAt(0)).join('');
-        }
-
-        function numberToText(numStr) {
-            const codes = numStr.match(/.{1,2}/g);
-            return codes.map(code => String.fromCharCode(parseInt(code))).join('');
-        }
-
-        function signMessage() {
-            const message = document.getElementById("message").value;
-            if (!message || !d || !n) {
-                alert("Isi pesan dan pastikan kunci sudah digenerate!");
-                return;
-            }
-
-            const mNumber = parseInt(textToNumber(message));
-            const signature = modPow(mNumber, d, n);
-            document.getElementById("signature").value = signature;
-        }
-
-        function verifySignature() {
-            const message = document.getElementById("verifyMessage").value;
-            const signature = parseInt(document.getElementById("verifySignature").value);
-
-            if (!message || !signature || !eGlobal || !n) {
-                alert("Isi semua bidang untuk verifikasi!");
-                return;
-            }
-
-            const mExpected = parseInt(textToNumber(message));
-            const mDecrypted = modPow(signature, eGlobal, n);
-
-            const result = mExpected === mDecrypted ? "Valid" : "Tidak Valid";
-            document.getElementById("verificationResult").value = result;
-        }
-    </script>
+      // Generate QR Code
+      let qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = ""; // clear sebelumnya
+      QRCode.toCanvas(cipher, { width: 300 }, function (err, canvas) {
+        if (err) console.error(err);
+        qrDiv.appendChild(canvas);
+      });
+    }
+  </script>
 
 </body>
 </html>
