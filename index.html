@@ -1,82 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSA Digital Signature</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 800px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0 12px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            margin-top: 40px;
+        }
+    </style>
 </head>
+<body>
 
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-4 text-center">RSA Digital Signature</h1>
+    <h1>RSA Digital Signature</h1>
 
-        <!-- Input Fields -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label for="p" class="block font-semibold">Bilangan Prima p:</label>
-                <input type="number" id="p" class="mt-1 block w-full border border-gray-300 rounded-md p-2" required>
-            </div>
-            <div>
-                <label for="q" class="block font-semibold">Bilangan Prima q:</label>
-                <input type="number" id="q" class="mt-1 block w-full border border-gray-300 rounded-md p-2" required>
-            </div>
-            <div>
-                <label for="e" class="block font-semibold">Public Key (e):</label>
-                <input type="number" id="e" class="mt-1 block w-full border border-gray-300 rounded-md p-2" required>
-            </div>
-        </div>
+    <h2>1. Generate Key</h2>
+    <label for="p">Masukkan bilangan prima p:</label>
+    <input type="number" id="p" placeholder="contoh: 61">
 
-        <div class="mb-6">
-            <button onclick="generateKeys()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Generate Keys
-            </button>
-        </div>
+    <label for="q">Masukkan bilangan prima q:</label>
+    <input type="number" id="q" placeholder="contoh: 53">
 
-        <!-- Display Keys -->
-        <div class="mb-6">
-            <label for="publicKey" class="block font-semibold">Public Key:</label>
-            <input type="text" id="publicKey" class="mt-1 block w-full border border-gray-300 rounded-md p-2 bg-gray-100" readonly>
-            <label for="privateKey" class="block font-semibold mt-4">Private Key:</label>
-            <input type="text" id="privateKey" class="mt-1 block w-full border border-gray-300 rounded-md p-2 bg-gray-100" readonly>
-        </div>
+    <label for="e">Masukkan nilai e (relatif prima dengan φ(n)):</label>
+    <input type="number" id="e" placeholder="contoh: 17">
 
-        <!-- Signing -->
-        <div class="mb-6">
-            <label for="message" class="block font-semibold">Pesan yang akan ditandatangani:</label>
-            <textarea id="message" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
-            <button onclick="signMessage()" class="mt-4 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                Tandatangani Pesan
-            </button>
-        </div>
+    <button onclick="generateKeys()">Generate Keys</button>
 
-        <!-- Signature Output -->
-        <div class="mb-6">
-            <label for="signature" class="block font-semibold">Tanda Tangan:</label>
-            <textarea id="signature" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md p-2 bg-gray-100" readonly></textarea>
-        </div>
+    <label>Public Key:</label>
+    <input type="text" id="publicKey" readonly>
 
-        <!-- Verifikasi -->
-        <div class="mb-6">
-            <label for="verifyMessage" class="block font-semibold">Pesan untuk verifikasi:</label>
-            <textarea id="verifyMessage" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
-            <label for="verifySignature" class="block font-semibold mt-4">Tanda tangan untuk verifikasi:</label>
-            <textarea id="verifySignature" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
-            <button onclick="verifySignature()" class="mt-4 bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                Verifikasi Tanda Tangan
-            </button>
-        </div>
+    <label>Private Key:</label>
+    <input type="text" id="privateKey" readonly>
 
-        <!-- Hasil Verifikasi -->
-        <div>
-            <label for="verificationResult" class="block font-semibold">Hasil Verifikasi:</label>
-            <input type="text" id="verificationResult" class="mt-1 block w-full border border-gray-300 rounded-md p-2 bg-gray-100" readonly>
-        </div>
-    </div>
+    <h2>2. Tanda Tangan Pesan</h2>
+    <label for="message">Pesan yang akan ditandatangani:</label>
+    <input type="text" id="message" placeholder="contoh: Halo">
 
-    <!-- Script -->
-    <script src="app.js"></script>
+    <button onclick="signMessage()">Tandatangani Pesan</button>
+
+    <label>Tanda Tangan:</label>
+    <input type="text" id="signature" readonly>
+
+    <h2>3. Verifikasi Tanda Tangan</h2>
+    <label for="verifyMessage">Pesan asli:</label>
+    <input type="text" id="verifyMessage" placeholder="contoh: Halo">
+
+    <label for="verifySignature">Tanda tangan:</label>
+    <input type="text" id="verifySignature" placeholder="salin tanda tangan di atas">
+
+    <button onclick="verifySignature()">Verifikasi</button>
+
+    <label>Hasil Verifikasi:</label>
+    <input type="text" id="verificationResult" readonly>
+
+    <script>
+        // Fungsi untuk menghitung FPB
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        // Fungsi untuk menghitung invers modulo
+        function modInverse(e, phi) {
+            let [a, b, x0, x1] = [phi, e, 0, 1];
+            while (b !== 0) {
+                let q = Math.floor(a / b);
+                [a, b] = [b, a % b];
+                [x0, x1] = [x1, x0 - q * x1];
+            }
+            return x0 < 0 ? x0 + phi : x0;
+        }
+
+        // Fungsi untuk pemangkatan modulo
+        function modPow(base, exp, mod) {
+            let result = 1;
+            base = base % mod;
+            while (exp > 0) {
+                if (exp % 2 === 1) result = (result * base) % mod;
+                base = (base * base) % mod;
+                exp = Math.floor(exp / 2);
+            }
+            return result;
+        }
+
+        // Variabel global
+        let n, d, eGlobal;
+
+        function generateKeys() {
+            const p = parseInt(document.getElementById("p").value);
+            const q = parseInt(document.getElementById("q").value);
+            const e = parseInt(document.getElementById("e").value);
+
+            if (!p || !q || !e) {
+                alert("Isi semua input p, q, dan e!");
+                return;
+            }
+
+            n = p * q;
+            const phi = (p - 1) * (q - 1);
+
+            if (gcd(e, phi) !== 1) {
+                alert("e dan φ(n) tidak relatif prima. Pilih e lain.");
+                return;
+            }
+
+            d = modInverse(e, phi);
+            eGlobal = e;
+
+            document.getElementById("publicKey").value = `(${e}, ${n})`;
+            document.getElementById("privateKey").value = `(${d}, ${n})`;
+        }
+
+        function textToNumber(text) {
+            return text.split('').map(char => char.charCodeAt(0)).join('');
+        }
+
+        function numberToText(numStr) {
+            const codes = numStr.match(/.{1,2}/g);
+            return codes.map(code => String.fromCharCode(parseInt(code))).join('');
+        }
+
+        function signMessage() {
+            const message = document.getElementById("message").value;
+            if (!message || !d || !n) {
+                alert("Isi pesan dan pastikan kunci sudah digenerate!");
+                return;
+            }
+
+            const mNumber = parseInt(textToNumber(message));
+            const signature = modPow(mNumber, d, n);
+            document.getElementById("signature").value = signature;
+        }
+
+        function verifySignature() {
+            const message = document.getElementById("verifyMessage").value;
+            const signature = parseInt(document.getElementById("verifySignature").value);
+
+            if (!message || !signature || !eGlobal || !n) {
+                alert("Isi semua bidang untuk verifikasi!");
+                return;
+            }
+
+            const mExpected = parseInt(textToNumber(message));
+            const mDecrypted = modPow(signature, eGlobal, n);
+
+            const result = mExpected === mDecrypted ? "Valid" : "Tidak Valid";
+            document.getElementById("verificationResult").value = result;
+        }
+    </script>
+
 </body>
-
 </html>
